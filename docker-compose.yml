@@ -29,8 +29,9 @@ services:
       - CM_DOMAIN=${CM_DOMAIN}
       - UQ_DOMAIN=${UQ_DOMAIN}
       - MP_DOMAIN=${MP_DOMAIN}
+      - PORTAL_DOMAIN=${PORTAL_DOMAIN}
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
-      - NGINX_ENVSUBST_FILTER=^(DOMAIN|CM_DOMAIN|UQ_DOMAIN|MP_DOMAIN)$$
+      - NGINX_ENVSUBST_FILTER=^(DOMAIN|CM_DOMAIN|UQ_DOMAIN|MP_DOMAIN|PORTAL_DOMAIN)$$
     volumes:
       - ./nginx/templates:/etc/nginx/templates:ro
       # Только каталог public каждого проекта и строго по тому пути, который

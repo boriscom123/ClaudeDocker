@@ -1,0 +1,22 @@
+# Портал видеоуроков на этом VPS. Применяется поверх docker-compose.yml проекта:
+#   COMPOSE_FILE=docker-compose.yml:/home/boris/projects/ClaudeDocker/projects/my_portal/docker-compose.yml
+#
+# Порт наружу не публикуется — вход держит общий nginx, который ходит в апстрим
+# portal:3004 по сети claude-net. База берётся с сети shared-data, где живёт
+# алиас `postgres`. Своя база не поднимается: профиль standalone не включён.
+services:
+  api:
+    ports: !reset []
+    networks:
+      claude-net:
+        # Явный алиас: имя сервиса `api` на общей сети слишком общее и однажды
+        # столкнётся с другим проектом.
+        aliases: [portal]
+      data:
+
+networks:
+  claude-net:
+    external: true
+  data:
+    external: true
+    name: shared-data

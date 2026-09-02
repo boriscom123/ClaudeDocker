@@ -1,0 +1,34 @@
+# Портал видеоуроков (soloaijourney.online). Апстрим `portal` — алиас
+# контейнера api на сети claude-net, к которой подключён общий nginx.
+# Второй домен проекта, soloaijourney.ru, добавится сюда редиректом, когда
+# у него сменится A-запись: PWA и подписки на пуши привязаны к одному origin.
+server {
+    listen 80;
+    server_name ${PORTAL_DOMAIN};
+
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+# Блок 443 включается после выпуска сертификата: nginx со ссылкой на
+# несуществующий файл сертификата не стартует и уронит остальные сайты.
+# server {
+#     listen 443 ssl;
+#     server_name ${PORTAL_DOMAIN};
+#
+#     ssl_certificate     /etc/letsencrypt/live/${PORTAL_DOMAIN}/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/${PORTAL_DOMAIN}/privkey.pem;
+#
+#     # Исходники уроков заливаются с телефона и весят гигабайты; значение по
+#     # умолчанию (1 МБ) обрежет загрузку на этапе 5. Ставим сразу.
+#     client_max_body_size 4g;
+#
+#     location / {
+#         proxy_pass http://portal:3004;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+# }
+#
