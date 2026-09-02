@@ -7,6 +7,12 @@ http {
   include mime.types;
   default_type application/octet-stream;
 
+  # В стандартный combined не входит домен, а на общем входе без него нельзя
+  # понять, к какому проекту относится запрос. Добавлен $host и время ответа.
+  log_format vhost '$remote_addr - $host "$request" $status $body_bytes_sent '
+                   '$request_time "$http_referer" "$http_user_agent"';
+  access_log /var/log/nginx/access.log vhost;
+
   # По одному файлу на проект: sites/<проект>.conf.template → /etc/nginx/sites/<проект>.conf
   include /etc/nginx/sites/*.conf;
 }
