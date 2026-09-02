@@ -1,0 +1,36 @@
+# Cross Messenger (Laravel) — код и php-fpm в своём compose, здесь только вход.
+# root обязан совпадать с путём, по которому код видит cm-php: SCRIPT_FILENAME
+# разворачивает php-fpm, а не nginx.
+server {
+    listen 80;
+    server_name ${CM_DOMAIN};
+
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${CM_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${CM_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${CM_DOMAIN}/privkey.pem;
+
+    root /var/www/cm/public;
+    index index.php;
+
+    client_max_body_size 32m;
+
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+
+    location ~ \.php$ {
+      fastcgi_pass cm-php:9000;
+      include fastcgi_params;
+      fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+      # Без этого Laravel сочтёт соединение HTTP и сгенерирует http-ссылки
+      fastcgi_param HTTPS on;
+    }
+
+    # Прятать точечные файлы (.env, .git), кроме ACME
+    location ~ /\.(?!well-known).* { deny all; }
+}

@@ -1,0 +1,12 @@
+# Каркас общего nginx. Server-блоки здесь не живут: каждый проект — свой файл
+# в sites/, чтобы правка одного проекта не задевала остальные.
+# Шаблоны рендерит штатный entrypoint nginx:alpine, подставляя домены из .env.
+events { worker_connections 1024; }
+
+http {
+  include mime.types;
+  default_type application/octet-stream;
+
+  # По одному файлу на проект: sites/<проект>.conf.template → /etc/nginx/sites/<проект>.conf
+  include /etc/nginx/sites/*.conf;
+}

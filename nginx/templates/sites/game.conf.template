@@ -1,0 +1,68 @@
+# World Tycoon Idle — статика из public/ + API и сокеты в контейнер server.
+# Апстрим `server` резолвится по алиасу compose-проекта game: общий nginx
+# подключён к его сети (см. docker-compose.yml, сеть game).
+server {
+    listen 80 default_server;
+    server_name ${DOMAIN};
+
+    # ACME-челлендж обязан отдаваться по HTTP — до всякого редиректа
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    root /var/www/game;
+    index index.html;
+
+    # JS и CSS — без кеша во время разработки
+    location ~* \.(js|css)$ {
+      add_header Cache-Control "no-cache, no-store, must-revalidate";
+      add_header Pragma "no-cache";
+      expires 0;
+      try_files $uri =404;
+    }
+
+    # HTML — без кеша
+    location ~* \.html$ {
+      add_header Cache-Control "no-cache, no-store, must-revalidate";
+      expires 0;
+      try_files $uri =404;
+    }
+
+    # Статика (картинки, иконки) — кешируем
+    location ~* \.(png|jpg|jpeg|gif|ico|svg)$ {
+      expires 7d;
+      add_header Cache-Control "public";
+      try_files $uri =404;
+    }
+
+    location / { try_files $uri $uri/ /index.html; }
+
+    location /devbot/webhook {
+      # devbot живёт в ClaudeService, сеть claude-net.
+      proxy_pass http://claudeservice-devbot-1:3002/webhook;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+    }
+
+    location /api {
+      proxy_pass http://server:3001;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection 'upgrade';
+      proxy_set_header Host $host;
+    }
+
+    location /socket.io {
+      proxy_pass http://server:3001;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection 'upgrade';
+    }
+}

@@ -1,0 +1,41 @@
+# Uzbek Queue (Laravel) — VPN-only: доступен лишь из подсети wg-easy.
+# Публичный интернет получает 403; порт 80 остаётся открытым для ACME.
+# root обязан совпадать с путём, по которому код видит uq-php.
+# Included by the central nginx (game_world) via `include /etc/nginx/sites/*.conf;`.
+server {
+    listen 80;
+    server_name ${UQ_DOMAIN};
+
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${UQ_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${UQ_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${UQ_DOMAIN}/privkey.pem;
+
+    root /var/www/uq/public;
+    index index.php;
+    client_max_body_size 25m;
+
+    # VPN-only: reachable solely from the wg-easy WireGuard subnet (connect with a full tunnel).
+    # The public internet gets 403. SSH/console and port-80 ACME renewal are unaffected.
+    allow 10.8.0.0/24;
+    allow 127.0.0.1;
+    deny all;
+
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+
+    location ~ \.php$ {
+        fastcgi_pass uq-php:9000;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTPS on;
+    }
+
+
+    location ~ /\.(?!well-known).* { deny all; }
+}
