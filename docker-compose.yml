@@ -12,8 +12,10 @@ name: shared
 
 services:
   # Единственная точка входа сервера: TLS, ACME и маршрутизация по доменам.
+  # Версия зафиксирована намеренно: плавающий тег alpine делает сборку
+  # невоспроизводимой — один и тот же файл давал бы разный образ в разное время.
   nginx:
-    image: nginx:alpine
+    image: nginx:1.31.4-alpine
     ports:
       # Бинды (host:container) задаются в .env — порты в репозитории не светятся
       - "${HTTP_BIND}"
@@ -49,21 +51,28 @@ services:
     restart: unless-stopped
 
   # Общая база: её используют game и uzbek_queue.
+  # Мажорная версия меняется только через дамп и восстановление — формат
+  # каталога данных между мажорами несовместим. Том 16-й версии сохранён
+  # отдельно (game_world_tycoon_idle_postgres_data) как путь отката.
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # С 18-й версии образ ждёт ОДИН том на /var/lib/postgresql, а данные
+      # кладёт в подкаталог версии (/var/lib/postgresql/18/docker). Монтирование
+      # в /var/lib/postgresql/data, как было до 17-й включительно, приводит к
+      # отказу старта.
+      - postgres18_data:/var/lib/postgresql
     networks: [data]
     restart: unless-stopped
 
   # Общий кеш и очереди. Проекты обращаются по имени `redis` — алиас живёт
   # на сети shared-data, поэтому REDIS_HOST=redis в их .env менять не нужно.
   redis:
-    image: redis:7-alpine
+    image: redis:8.10-alpine
     volumes:
       - redis_data:/data
     networks: [data]
@@ -79,11 +88,10 @@ services:
     restart: unless-stopped
 
 volumes:
-  # Тома уже существуют и принадлежали compose-проекту game — подключаем их
-  # под нынешними именами, чтобы данные остались на месте.
-  postgres_data:
-    external: true
-    name: game_world_tycoon_idle_postgres_data
+  # Данные postgres 18 — свой том. Том 16-й версии
+  # (game_world_tycoon_idle_postgres_data) намеренно не удалён: пока он цел,
+  # откат к прежней версии — это смена image и имени тома обратно.
+  postgres18_data:
   portainer_data:
     external: true
     name: game_world_tycoon_idle_portainer_data
