@@ -1,0 +1,12 @@
+# cross_messenger на этом VPS: своя mysql остаётся (она не общая), свой nginx
+# не нужен — вход держит общий слой и ходит в cm-php:9000 по сети web.
+# Имя контейнера cm-php фиксировано: на него ссылается nginx/templates/sites/cm.conf.template.
+services:
+  php:
+    networks:
+      - default
+      - web
+
+networks:
+  web:
+    external: true

@@ -1,0 +1,16 @@
+# uzbek_queue на этом VPS: postgres и redis из общего слоя, вход через общий nginx.
+# Применяется поверх docker-compose.yml проекта через COMPOSE_FILE.
+services:
+  php:
+    depends_on: !reset []
+    networks: [default, web, data]
+  worker:
+    depends_on: !reset []
+    networks: [default, data]
+
+networks:
+  web:
+    external: true
+  data:
+    external: true
+    name: shared-data

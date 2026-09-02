@@ -1,0 +1,14 @@
+# game на этом VPS. Применяется поверх docker-compose.yml проекта:
+#   COMPOSE_FILE=docker-compose.yml:/home/boris/projects/ClaudeDocker/projects/game/docker-compose.yml
+#
+# Своя база выключена профилем (она в общем слое), поэтому depends_on обнуляется:
+# compose откажется стартовать, если включённый сервис зависит от выключенного.
+services:
+  server:
+    depends_on: !reset []
+    networks: [default, data]
+
+networks:
+  data:
+    external: true
+    name: shared-data

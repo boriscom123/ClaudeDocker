@@ -1,0 +1,5 @@
+# myproject на этом VPS: порт наружу не публикуется, вход через общий nginx,
+# который ходит в апстрим myproject:3003 по сети claude-net.
+services:
+  myproject:
+    ports: !reset []
