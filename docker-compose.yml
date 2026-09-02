@@ -1,0 +1,102 @@
+# Общий слой VPS: точка входа, общие данные, просмотр контейнеров.
+#
+# Правило владения: ресурс, нужный более чем одному проекту, описан здесь;
+# нужный одному — в репозитории этого проекта. Compose самих проектов сюда
+# не входит: у них свои файлы плюс оверлей под этот VPS в projects/.
+#
+#   docker compose up -d
+#
+# Требуются внешние сети (создаются один раз):
+#   docker network create web claude-net shared-data
+name: shared
+
+services:
+  # Единственная точка входа сервера: TLS, ACME и маршрутизация по доменам.
+  nginx:
+    image: nginx:alpine
+    ports:
+      # Бинды (host:container) задаются в .env — порты в репозитории не светятся
+      - "${HTTP_BIND}"
+      - "${HTTPS_BIND}"
+    environment:
+      # Подставляются в шаблоны через envsubst при старте. OUTPUT_DIR
+      # перенаправляет рендер в /etc/nginx с сохранением подкаталогов, FILTER
+      # ограничивает подстановку нашими переменными — служебные переменные
+      # nginx ($host, $uri, $document_root) остаются нетронутыми.
+      - DOMAIN=${DOMAIN}
+      - CM_DOMAIN=${CM_DOMAIN}
+      - UQ_DOMAIN=${UQ_DOMAIN}
+      - MP_DOMAIN=${MP_DOMAIN}
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      - NGINX_ENVSUBST_FILTER=^(DOMAIN|CM_DOMAIN|UQ_DOMAIN|MP_DOMAIN)$$
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      # Только каталог public каждого проекта и строго по тому пути, который
+      # видит его php-fpm: SCRIPT_FILENAME разворачивает php-fpm, а не nginx.
+      # Репозитории целиком сюда не монтируются — иначе их .env оказались бы
+      # внутри интернет-контейнера.
+      - /home/boris/projects/game_world_tycoon_idle/public:/var/www/game:ro
+      - /home/boris/projects/cross_messenger/public:/var/www/cm/public:ro
+      - /home/boris/projects/uzbek_queue/public:/var/www/uq/public:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /home/boris/infra/acme:/var/www/acme:ro
+    networks:
+      # web — cm-php и uq-php; claude-net — devbot и myproject;
+      # game — алиас `server` для /api и /socket.io.
+      - web
+      - claude-net
+      - game
+    restart: unless-stopped
+
+  # Общая база: её используют game и uzbek_queue.
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [data]
+    restart: unless-stopped
+
+  # Общий кеш и очереди. Проекты обращаются по имени `redis` — алиас живёт
+  # на сети shared-data, поэтому REDIS_HOST=redis в их .env менять не нужно.
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks: [data]
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    ports:
+      - "${PORTAINER_BIND}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: unless-stopped
+
+volumes:
+  # Тома уже существуют и принадлежали compose-проекту game — подключаем их
+  # под нынешними именами, чтобы данные остались на месте.
+  postgres_data:
+    external: true
+    name: game_world_tycoon_idle_postgres_data
+  portainer_data:
+    external: true
+    name: game_world_tycoon_idle_portainer_data
+  redis_data:
+
+networks:
+  web:
+    external: true
+  claude-net:
+    external: true
+  game:
+    external: true
+    name: game_world_tycoon_idle_default
+  data:
+    external: true
+    name: shared-data
