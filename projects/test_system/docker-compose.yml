@@ -1,0 +1,42 @@
+# Система тестирования (skat/test_system) на этом VPS. Применяется поверх
+# docker/docker-compose.yml проекта через COMPOSE_FILE в docker/.env.vps.
+#
+# Наружу порты не публикуются — вход держит общий nginx: https-апстрим
+# ts-http:443 (свой nginx проекта с php-fpm) и websocket ts-centrifugo:8000,
+# оба по сети web. База, rabbitmq и redis — свои, внутри сети проекта.
+services:
+  http:
+    ports: !reset []
+    networks:
+      default:
+      web:
+        # Явный алиас: имя сервиса `http` на общей сети слишком общее.
+        aliases: [ts-http]
+
+  centrifugo:
+    ports: !reset []
+    networks:
+      default:
+      web:
+        aliases: [ts-centrifugo]
+
+  # Браузер подключается к centrifugo через домен стенда, а не localhost:8006.
+  php-fpm:
+    environment:
+      CENTRIFUGO_URL: wss://${TS_DOMAIN}/connection/websocket
+
+  # Панель rabbitmq наружу не нужна.
+  rabbitmq:
+    ports: !reset []
+
+  # Dev-server с live-reload и redis-commander держат память и порты (8081
+  # занят adguard), на этом VPS ресурсы ограничены. Фронт собирается разово:
+  # `docker compose run --rm --no-deps --entrypoint="yarn build" encore`.
+  encore:
+    profiles: [dev-server]
+  redis-commander:
+    profiles: [tools]
+
+networks:
+  web:
+    external: true

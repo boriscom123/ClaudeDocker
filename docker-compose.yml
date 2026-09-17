@@ -30,8 +30,9 @@ services:
       - UQ_DOMAIN=${UQ_DOMAIN}
       - MP_DOMAIN=${MP_DOMAIN}
       - PORTAL_DOMAIN=${PORTAL_DOMAIN}
+      - TS_DOMAIN=${TS_DOMAIN}
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
-      - NGINX_ENVSUBST_FILTER=^(DOMAIN|CM_DOMAIN|UQ_DOMAIN|MP_DOMAIN|PORTAL_DOMAIN)$$
+      - NGINX_ENVSUBST_FILTER=^(DOMAIN|CM_DOMAIN|UQ_DOMAIN|MP_DOMAIN|PORTAL_DOMAIN|TS_DOMAIN)$$
     volumes:
       - ./nginx/templates:/etc/nginx/templates:ro
       # Только каталог public каждого проекта и строго по тому пути, который
@@ -44,7 +45,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /home/boris/infra/acme:/var/www/acme:ro
     networks:
-      # web — cm-php и uq-php; claude-net — devbot и myproject;
+      # web — cm-php, uq-php и test_system (ts-http, ts-centrifugo); claude-net — devbot и myproject;
       # game — алиас `server` для /api и /socket.io.
       - web
       - claude-net

@@ -1,0 +1,48 @@
+# Система тестирования (skat/test_system, Symfony). У проекта свой nginx с
+# php-fpm, поэтому здесь только вход: https-апстрим ts-http:443 и websocket
+# centrifugo. Оба алиаса — на сети web (оверлей projects/test_system).
+server {
+    listen 80;
+    server_name ${TS_DOMAIN};
+
+    location /.well-known/acme-challenge/ { root /var/www/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${TS_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${TS_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${TS_DOMAIN}/privkey.pem;
+
+    # Видео групп и архивы сессий: лимиты как в nginx проекта.
+    client_max_body_size 6072m;
+    proxy_read_timeout 3600;
+    proxy_send_timeout 3600;
+
+    # Стенд поднимается на время разработки: имена через переменные (см. resolver).
+    set $ts_http ts-http;
+    set $ts_centrifugo ts-centrifugo;
+
+    location /connection/websocket {
+        proxy_pass http://$ts_centrifugo:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        # Свой nginx проекта слушает только 443 с самоподписанным сертификатом.
+        proxy_pass https://$ts_http:443;
+        proxy_ssl_verify off;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_set_header Host $host;
+        # nginx проекта берёт реальный IP из X-Real-IP (real_ip_header).
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
