@@ -13,6 +13,12 @@ http {
                    '$request_time "$http_referer" "$http_user_agent"';
   access_log /var/log/nginx/access.log vhost;
 
+  # DNS docker. Апстримы проектов резолвятся в момент запроса через переменные
+  # в proxy_pass/fastcgi_pass: проекты поднимаются и гасятся по отдельности, а
+  # статическое имя остановленного контейнера не даёт nginx стартовать вовсе —
+  # вход пропадает у всех проектов сразу. Остановленный проект получает 502.
+  resolver 127.0.0.11 valid=10s ipv6=off;
+
   # По одному файлу на проект: sites/<проект>.conf.template → /etc/nginx/sites/<проект>.conf
   include /etc/nginx/sites/*.conf;
 }

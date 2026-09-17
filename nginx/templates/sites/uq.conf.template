@@ -30,7 +30,8 @@ server {
     location / { try_files $uri $uri/ /index.php?$query_string; }
 
     location ~ \.php$ {
-        fastcgi_pass uq-php:9000;
+        set $uq_php uq-php:9000;
+        fastcgi_pass $uq_php;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param HTTPS on;
